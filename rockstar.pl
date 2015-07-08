@@ -712,8 +712,8 @@ READ:      while($line = engine_readline($Curr_Reader))
                $winner = $them;
                last GAME;
            } 
-#       $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
-	  $cost = ($result - 1.0 / (1 + 10.0 ** -(1.15 * $score / 400))) ** 2 / $score_count; #print "$cost \n";
+       $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
+	   $cost = ($result - 1.0 / (1 + 10.0 ** -(1.15 * $score / 400))) ** 2 / $score_count; #print "$cost \n";
 
            # STEP. Change turn
            $engine_to_move = $them;
@@ -722,7 +722,7 @@ READ:      while($line = engine_readline($Curr_Reader))
        # STEP. Record the result
        print GAMELOG "Winner: $winner\n";
 #	   print $score_count;
-       $result += ($winner == 1 ? 1 : $winner == 2 ? -1 : 0); #print "$result\n"
+#      $result += ($winner == 1 ? 1 : $winner == 2 ? -1 : 0); #print "$result\n"
    }
 
 #	   $score += $score;  print "$score\n";
