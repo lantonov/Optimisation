@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use threads;
-#use threads::shared;
+use threads::shared;
 use Time::HiRes qw(time);
 use IPC::Open2;
 use IO::Select;
