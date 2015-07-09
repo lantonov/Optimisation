@@ -238,8 +238,8 @@ sub run_rockstar
     engine_init() if (!$simulate);
 
 # Generate random vector and initialise engine variables
-my $random   = Math::MatrixReal->new_random(1,$n_parameters,{bounded_by=>[-1,1]});
-my $policy   = $initial_policy + $random; # print "$policy\n";
+#$my $random   = Math::MatrixReal->new_random(1,$n_parameters,{bounded_by=>[-1,1]});
+my $policy   = $initial_policy;# + $random; # print "$policy\n";
 #$theta       = $iter > 1 ? $theta : $initial_theta;
 #my $var_eng1 = $initial_theta + $policy * $sigma;
 my ($theta, $cost, %var_eng2, %var_value, $shared_theta2, $var_eng1);
@@ -284,7 +284,7 @@ my ($theta, $cost, %var_eng2, %var_value, $shared_theta2, $var_eng1);
 
  my $random   = Math::MatrixReal->new_random(1,$n_parameters,{bounded_by=>[-1,1]});
  my $policy_eps   = $policy + $random; # print "$policy_eps\n";   
-	$var_eng1 = $initial_theta + $policy_eps * $sigma;
+	$var_eng1 = $initial_theta + $policy_eps;
 
     # STEP. Play two games (with alternating colors) and obtain the score from eng1 perspective.
         $cost = ($simulate ? simulate_2games(\$var_eng1, \%var_eng2) : engine_2games(\%var_eng2));
@@ -449,7 +449,7 @@ while(1){
     $covar_inv    = $covar->inverse();#  print "$covar_inv\n";
     $policy       = $cur_policy_new; print "$cur_policy_new\n";
 
-   $optimization_done = 1 if ($sigma < 1.0e-8 or $covar->norm_sum() == 0);
+   $optimization_done = 1 if ($sigma < 1.0e-8);
  } 
  
  }
@@ -713,7 +713,7 @@ READ:      while($line = engine_readline($Curr_Reader))
                last GAME;
            } 
        $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
-	   $cost = ($result - 1.0 / (1 + 10.0 ** -(1.15 * $score / 400))) ** 2 / $score_count; #print "$cost \n";
+	   $cost = ($result - 1.0 / (1 + 10.0 ** -(0.007 * $score))) ** 2 / $score_count; #print "$cost \n";
 
            # STEP. Change turn
            $engine_to_move = $them;
@@ -726,7 +726,7 @@ READ:      while($line = engine_readline($Curr_Reader))
    }
 
 #	   $score += $score;  print "$score\n";
-	   $cost += $cost;  print "$cost\n";
+ 	   $cost += $cost;  print "$cost\n";  
        return $cost;# print "$result\n";
 }
 
