@@ -275,7 +275,7 @@ my $theta = $initial_theta;
              lock($shared_lock);
 
             # STEP. Increase the shared interation shared_iter
-             if (++$shared_iter > $iterations or $optimization_done = 1)
+             if (++$shared_iter > $iterations)
              {
                  engine_quit() if (!$simulate);
                  return;
