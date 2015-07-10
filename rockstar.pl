@@ -730,7 +730,7 @@ READ:      while($line = engine_readline($Curr_Reader))
 #      $result += ($winner == 1 ? 1 : $winner == 2 ? -1 : 0); #print "$result\n"
        $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
 	   $sigmoid += $sigmoid;
-	   $cost = ($score_count * ($result - $sigmoid)) ** 2; #print "$cost \n";
+	   $cost = $score_count * ($result - $sigmoid) ** 2; #print "$cost \n";
 
    }
 
