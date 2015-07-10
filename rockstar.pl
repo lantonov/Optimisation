@@ -242,7 +242,8 @@ sub run_rockstar
 my $policy   = $initial_policy;# + $random; # print "$policy\n";
 #$theta       = $iter > 1 ? $theta : $initial_theta;
 #my $var_eng1 = $initial_theta + $policy * $sigma;
-my ($theta, $cost, %var_eng2, %var_value, $shared_theta2, $var_eng1);
+my ($cost, %var_eng2, %var_value, $shared_theta2, $var_eng1);
+my $theta = $initial_theta;
 
 	# STEP. Create variable index for easy access.
     my $count = 1;
@@ -284,7 +285,7 @@ my ($theta, $cost, %var_eng2, %var_value, $shared_theta2, $var_eng1);
 
  my $random   = Math::MatrixReal->new_random(1,$n_parameters,{bounded_by=>[-1,1]});
  my $policy_eps   = $policy + $random; # print "$policy_eps\n";   
-	$var_eng1 = $initial_theta + $policy_eps;
+	$var_eng1 = $theta + $policy_eps;
 
     # STEP. Play two games (with alternating colors) and obtain the score from eng1 perspective.
         $cost = ($simulate ? simulate_2games(\$var_eng1, \%var_eng2) : engine_2games(\%var_eng2));
@@ -553,6 +554,7 @@ sub engine_2games
     my $line;
 	my $cost;
 	my $score_count = 0;
+	my $sigmoid = 0;
 #	my $var_eng1 = $shared_var_eng1;
 
     # STEP. Choose a random opening
@@ -653,6 +655,8 @@ READ:      while($line = engine_readline($Curr_Reader))
                    $score = $array[9] if ($array[8] eq 'cp');
 #                   $score = +10000   if ($array[8] eq 'mate' && $array[9] > 0);
 #                   $score = -10000   if ($array[8] eq 'mate' && $array[9] < 0);
+                   $sigmoid = 1.0 / (1 + 10.0 ** -(0.7 * $score / 100))
+                   
                }
 
 		}
@@ -712,8 +716,9 @@ READ:      while($line = engine_readline($Curr_Reader))
                $winner = $them;
                last GAME;
            } 
-       $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
-	   $cost = ($result - 1.0 / (1 + 10.0 ** -(0.007 * $score))) ** 2 / $score_count; #print "$cost \n";
+#       $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
+#	   $score += $score;
+#	   $cost = ($result - 1.0 / (1 + 10.0 ** -(0.7 * $score / 100))) ** 2; #print "$cost \n";
 
            # STEP. Change turn
            $engine_to_move = $them;
@@ -723,11 +728,15 @@ READ:      while($line = engine_readline($Curr_Reader))
        print GAMELOG "Winner: $winner\n";
 #	   print $score_count;
 #      $result += ($winner == 1 ? 1 : $winner == 2 ? -1 : 0); #print "$result\n"
+       $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
+	   $sigmoid += $sigmoid;
+	   $cost = ($score_count * ($result - $sigmoid)) ** 2; #print "$cost \n";
+
    }
 
 #	   $score += $score;  print "$score\n";
- 	   $cost += $cost;  print "$cost\n";  
-       return $cost;# print "$result\n";
+ 	   $cost += $cost;   
+       return print "$cost / $score_count \n";
 }
 
 ######################################################
@@ -847,7 +856,7 @@ my ($near_costs_block,$near_policy_block,$mean_cost,$near_bins_size,$policy,$cov
     my $MD2               = $diff_covar->scalar_product(~$diffoftheta);# print "$MD2\n";
        $expMD2            = exp $MD2; #print "$expMD2\n";
        $adot              = $near_costs_block->element(1,$row) * $expMD2 * $residual_term; #print "$adot\n";
-       $bdot              = $expMD2 * $residual_term; #print "$adot\n";
+       $bdot              = $expMD2 * $residual_term; #print "$bdot\n";
        $a                += $near_costs_block->element(1,$row) * $expMD2; #print "$a\n";
        $b                += $expMD2; #print "$b\n";
    
