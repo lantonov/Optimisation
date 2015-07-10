@@ -655,7 +655,7 @@ READ:      while($line = engine_readline($Curr_Reader))
                    $score = $array[9] if ($array[8] eq 'cp');
 #                   $score = +10000   if ($array[8] eq 'mate' && $array[9] > 0);
 #                   $score = -10000   if ($array[8] eq 'mate' && $array[9] < 0);
-                   $sigmoid = 1.0 / (1 + 10.0 ** -(0.7 * $score / 100))
+                   $sigmoid = 0.5 - 1.0 / (1 + 10.0 ** -(0.7 * $score / 10000))
                    
                }
 
@@ -716,9 +716,6 @@ READ:      while($line = engine_readline($Curr_Reader))
                $winner = $them;
                last GAME;
            } 
-#       $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
-#	   $score += $score;
-#	   $cost = ($result - 1.0 / (1 + 10.0 ** -(0.7 * $score / 100))) ** 2; #print "$cost \n";
 
            # STEP. Change turn
            $engine_to_move = $them;
@@ -726,19 +723,25 @@ READ:      while($line = engine_readline($Curr_Reader))
 
        # STEP. Record the result
        print GAMELOG "Winner: $winner\n";
+
+	 ### Here, the aim is to code the Texel formula for the objective function, 
+	 ###  with the result calculated AFTER the score. Not sure if correct.
+	 ###  One way is to sum all scores in one sigmoid and divide by score_count (mean score)
+	 ###  Another way is to sum all sigmoids and divide by score_count (mean sigmoid).
+
 #	   print $score_count;
 #      $result += ($winner == 1 ? 1 : $winner == 2 ? -1 : 0); #print "$result\n"
        $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
-	   $sigmoid += $sigmoid;
-	   $cost = $score_count * ($result - $sigmoid) ** 2; #print "$cost \n";
+	   $score += $score;
+	 my $mean_score = $score / $score_count;
+	   $cost = ($result - 1.0 / (1 + 10.0 ** -(0.7 * $mean_score / 100))) ** 2; #print "$cost \n";
 
    }
 
 #	   $score += $score;  print "$score\n";
  	   $cost += $cost;   
-       return print "$cost / $score_count \n";
+       return print "$cost \n";
 }
-
 ######################################################
 #sub take_sample 
 #{ lock($shared_lock);
