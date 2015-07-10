@@ -275,7 +275,7 @@ my $theta = $initial_theta;
              lock($shared_lock);
 
             # STEP. Increase the shared interation shared_iter
-             if (++$shared_iter > $iterations or $optimization_done)
+             if (++$shared_iter > $iterations or $optimization_done = 1)
              {
                  engine_quit() if (!$simulate);
                  return;
@@ -285,7 +285,7 @@ my $theta = $initial_theta;
 
  my $random   = Math::MatrixReal->new_random(1,$n_parameters,{bounded_by=>[-1,1]});
  my $policy_eps   = $policy + $random; # print "$policy_eps\n";   
-	$var_eng1 = $theta + $policy_eps;
+	$var_eng1 = $theta + $policy_eps * $sigma;
 
     # STEP. Play two games (with alternating colors) and obtain the score from eng1 perspective.
         $cost = ($simulate ? simulate_2games(\$var_eng1, \%var_eng2) : engine_2games(\%var_eng2));
