@@ -406,7 +406,8 @@ while(1){
 
 # }
 ### Adjust sigma depending on the previous cost 
-	$sigma = ($iter > 1 and $cost_history->element(1,$iter-1) > $cost_history->element(1,$iter)) ? ($sigma * (1.0 + $expansion_factor_sigma)) : ($sigma / ((1.0 + $expansion_factor_sigma) ** $imp_factor)); 
+	$sigma = $sigma * (1 + $expansion_factor_sigma) if ($iter > 1 and $cost_history->element(1,$iter-1) > $cost_history->element(1,$iter));
+    $sigma = $sigma / ((1 + $expansion_factor_sigma) ** $imp_factor) if ($iter > 1 and $cost_history->element(1,$iter-1) < $cost_history->element(1,$iter)); 
     print "$sigma\n"; # print "$expansion_factor_sigma\n";
 
 			# STEP. Apply the result
