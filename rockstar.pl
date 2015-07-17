@@ -225,6 +225,7 @@ sub run_rockstar
     my $covar_inv              = $covar->inverse();
     my $pc                     = new Math::MatrixReal($n_parameters,1);
     my $c_normalized           = $covar;
+	my $result_inc             = 0;
 
     # STEP. Open thread specific log file
     my $path = $gamelog_path;
@@ -288,9 +289,10 @@ my $theta = $initial_theta;
 	$var_eng1 = $theta + $policy_eps * $sigma;
 
     # STEP. Play two games (with alternating colors) and obtain the score from eng1 perspective.
-        $cost = ($simulate ? simulate_2games(\$var_eng1, \%var_eng2) : engine_2games(\%var_eng2));
-        $theta = $var_eng1;# print "$theta \n"; 
-#        $cost = -$cost;
+     my $result = ($simulate ? simulate_2games(\$var_eng1, \%var_eng2) : engine_2games(\%var_eng2));
+        $theta = $var_eng1;# print "$theta \n";
+		$result_inc = $result_inc + $result;
+        $cost = 1 - 1 / (1 + 10 ** (-$result_inc / 400)); print "$cost \n";
 
     # Record the policy, theta, and cost
 	$policy_history->assign_row($iter,$policy);#  print "$policy_history \n";
@@ -406,8 +408,8 @@ while(1){
 
 # }
 ### Adjust sigma depending on the previous cost 
-	$sigma = $sigma * (1 + $expansion_factor_sigma) if ($iter > 1 and $cost_history->element(1,$iter-1) > $cost_history->element(1,$iter));
-    $sigma = $sigma / ((1 + $expansion_factor_sigma) ** $imp_factor) if ($iter > 1 and $cost_history->element(1,$iter-1) < $cost_history->element(1,$iter)); 
+	$sigma = $sigma * (1 + $expansion_factor_sigma) if $cost_history->element(1,$iter-1) < $cost_history->element(1,$iter);
+    $sigma = $sigma / ((1 + $expansion_factor_sigma) ** $imp_factor) if $cost_history->element(1,$iter-1) > $cost_history->element(1,$iter); 
     print "$sigma\n"; # print "$expansion_factor_sigma\n";
 
 			# STEP. Apply the result
@@ -731,8 +733,8 @@ READ:      while($line = engine_readline($Curr_Reader))
 	 ###  Another way is to sum all sigmoids and divide by score_count (mean sigmoid).
 
 #	   print $score_count;
-#      $result += ($winner == 1 ? 1 : $winner == 2 ? -1 : 0); #print "$result\n"
-       $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
+       $result += ($winner == 1 ? 1 : $winner == 2 ? -1 : 0); #print "$result\n"
+#       $result = ($winner == 1 ? 1 : $winner == 2 ? 0 : 0.5); #print "$result\n"
 	   $score += $score;
 	 my $mean_score = $score / $score_count;
 	   $cost = ($result - 1.0 / (1 + 10.0 ** -(0.7 * $mean_score / 100))) ** 2; #print "$cost \n";
@@ -741,7 +743,7 @@ READ:      while($line = engine_readline($Curr_Reader))
 
 #	   $score += $score;  print "$score\n";
  	   $cost += $cost;   
-       return print "$cost \n";
+       return $result;
 }
 ######################################################
 #sub take_sample 
