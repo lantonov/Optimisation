@@ -408,8 +408,8 @@ while(1){
 
 # }
 ### Adjust sigma depending on the previous cost 
-	$sigma = $sigma * (1 + $expansion_factor_sigma) if $cost_history->element(1,$iter-1) < $cost_history->element(1,$iter);
-    $sigma = $sigma / ((1 + $expansion_factor_sigma) ** $imp_factor) if $cost_history->element(1,$iter-1) > $cost_history->element(1,$iter); 
+	$sigma = $sigma * (1 + $expansion_factor_sigma) if $result < 0;
+    $sigma = $sigma / ((1 + $expansion_factor_sigma) ** $imp_factor) if $result > 0; 
     print "$sigma\n"; # print "$expansion_factor_sigma\n";
 
 			# STEP. Apply the result
@@ -438,7 +438,7 @@ while(1){
     if (($cur_policy_new-$policy) * $covar_inv * ~($cur_policy_new-$policy) < ($chiN * 1.5)**2) {
         $pc           = (1.0 - $cc) * $pc + $cc * ~($cur_policy_new-$policy) / $sigma;
         $c_normalized = (1.0 - $ccov) * $c_normalized + $pc * ~$pc * $ccov;
-        $c_normalized = $c_normalized * 1.0 / $c_normalized->det() / $n_parameters if abs($c_normalized->det()) < 1.0e-20; #print $c_normalized->det();
+        $c_normalized = $c_normalized * 1.0 / $c_normalized->det() / $n_parameters if $c_normalized->det() != 0; #print $c_normalized->det();
     }
 
 ### Enforcing symmetry
