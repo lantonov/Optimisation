@@ -438,7 +438,8 @@ while(1){
     if (($cur_policy_new-$policy) * $covar_inv * ~($cur_policy_new-$policy) < ($chiN * 1.5)**2) {
         $pc           = (1.0 - $cc) * $pc + $cc * ~($cur_policy_new-$policy) / $sigma;
         $c_normalized = (1.0 - $ccov) * $c_normalized + $pc * ~$pc * $ccov;
-        $c_normalized = $c_normalized * 1.0 / $c_normalized->det() / $n_parameters if $c_normalized->det() != 0; #print $c_normalized->det();
+     my $determinant  = $c_normalized->det();
+        $c_normalized = $c_normalized * 1.0 / $determinant / $n_parameters if $determinant != 0; #print $c_normalized->det();
     }
 
 ### Enforcing symmetry
