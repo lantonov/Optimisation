@@ -16,5 +16,5 @@ The objective function is like the one presented in:
 https://chessprogramming.wikispaces.com/Texel%27s+Tuning+Method
 
 Coefficient a = 0.007 (in centipawns) from:
-Vladimir Medvedev. Определяем веса шахматных фигур регрессионным анализом (Determination of chess pieces weights by regression analysis).
+Vladimir Medvedev. РћРїСЂРµРґРµР»СЏРµРј РІРµСЃР° С€Р°С…РјР°С‚РЅСЊiС… С„РёРіСѓСЂ СЂРµРіСЂРµСЃСЃРёРѕРЅРЅСЊiРј Р°РЅР°Р»РёР·РѕРј (Determination of chess pieces weights by regression analysis).
 http://habrahabr.ru/post/254753/
