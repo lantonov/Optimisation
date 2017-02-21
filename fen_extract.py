@@ -37,7 +37,6 @@ def pgn_prepare():
     all_evals = list(itertools.chain(*all_evals))
     all_posits = list(itertools.chain(*all_posits))
     print(len(all_posits))
-    print(len(all_posits))
     return all_posits, all_evals
     pgn.close ()
 
