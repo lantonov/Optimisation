@@ -8,6 +8,7 @@ import scipy as sp
 import scipy.stats
 import chess
 import collections
+import operator
 from chess import uci
 from chess import Board
 from chess import Move
@@ -15,12 +16,11 @@ from chess import syzygy
 from numpy import sqrt
 from scipy.stats import chi2
 from scipy.stats import norm
-from operator import add, mul
 from statistics import median
 
 Engines = [
-    {'file': 'C:\\msys2\\home\\lanto\\safechecks\\tune.exe', 'name': 'test'},
-    {'file': 'C:\\msys2\\home\\lanto\\safechecks\\tune.exe', 'name': 'base'}
+    {'file': 'C:\\msys2\\home\\lanto\\attackweights\\tune.exe', 'name': 'test'},
+    {'file': 'C:\\msys2\\home\\lanto\\attackweights\\tune.exe', 'name': 'base'}
     ]
 
 Draw = {'movenumber': 40, 'movecount': 8, 'score': 20}
@@ -32,8 +32,7 @@ Openings = 'C:\\Cutechess\\2moves.epd'
 Games = 10
 UseEngine = False
 Syzygy = 'C:\\Winboard\\Syzygy'
-ParametersFile = 'safechecks.txt'
-
+ParametersFile = 'kingattack.txt'
 
 Options = {'Clear Hash': True, 'Hash': 16, 'SyzygyPath': Syzygy, \
           'SyzygyProbeDepth': 10, 'Syzygy50MoveRule': True, 'SyzygyProbeLimit': 5}
@@ -88,11 +87,6 @@ def shuffled(x):
 
 def init_engines(pars):
   info_handlers = []
-#    for u in self.engines:
-#      if (not u.is_alive()):
-#        self.engines = init_engines()
-
-#    uciEngines = self.engines
   uciEngines = []
   for e in Engines:
     uciEngines.append(uci.popen_engine(e['file']))
@@ -124,7 +118,6 @@ class DifferentialEvolution():
       np.array([self.hbounds,]*population_size) - np.array(self.current)).tolist()
     self.trial = [[0,0,0,p] for p in self.training]
     self.history = self.population
-    self.best_individuum = self.history[-1]
     self.current_matrix = []
     self.diagonal = []
 #    self.engines = init_engines()
@@ -156,33 +149,34 @@ class DifferentialEvolution():
           pass
       curr[2] += 2*Games
       tri[2] += 2*Games
-      curr[0] = round(curr[1] / curr[2],2)
-      tri[0] = round(tri[1] / tri[2],2)
+      curr[0] = round(curr[1] / curr[2] * 100,1)
+      tri[0] = round(tri[1] / tri[2] * 100,1)
 
 ###  Selection
       if curr[0] < tri[0]:
         population.append(tri)
       else:
         population.append(curr)
-    self.population = sorted(population, key=lambda fitness: fitness[0])
+    self.population = sorted(population, key=operator.itemgetter(0,2))
     self.history = self.updateHistory()
     print(self.population)
     print(self.history)
-    with open('tuning.txt', 'a') as f:
-      f.write(str(self.population) + '\n' + str(self.history) + '\n')
+#    with open('tuning.txt', 'a') as f:
+#      f.write(str(self.population) + '\n' + str(self.history) + '\n')
 
 ###  History update
   def updateHistory(self):
     for popu in self.population:
       if str(popu[3]) in str(self.history):
         self.history = [popu if (str(x[3]) in str(popu[3]) \
-        and x[2] < popu[2]) else x for x in self.history]
+          and x[2] < popu[2]) else x for x in self.history]
 #      elif popu[2] > 9*Games:
       else:
         self.history.append(popu)
+#    self.history = [popu if str(popu[3]) in str(x[3]) and popu[2] > x[2] \
+#      else x for popu, x in zip(self.population, self.history)]
 
-#    self.history = sorted(self.history, key=lambda games: games[2])
-    self.history = sorted(self.history, key=lambda fitness: fitness[0])[-population_size:]
+    self.history = sorted(self.history, key=operator.itemgetter(0,2))[-population_size:]
     return self.history
     
   def trans_result(self, score):
@@ -211,7 +205,7 @@ class DifferentialEvolution():
               break
 
         uciEngines[turnIdx].position(board)
-        bestmove, score = uciEngines[turnIdx].go(depth=6)
+        bestmove, score = uciEngines[turnIdx].go(depth=9)
         score = info_handler.info["score"][1].cp
 #        print(score)
 
@@ -266,26 +260,24 @@ class DifferentialEvolution():
     OverflowError, OSError, ResourceWarning):
       for u in uciEngines:
         u.quit(1)
-    print(result)
     return result
+#    print(result)
     exit(0)
 
 ###  Mutation
   def mutate(self):
     self.trial = []
-    self.best_individuum = self.history[-1]
+    best_individuum = self.history[-1]
     if self.f is None:
       use_f = random.uniform(0.5,1.5)
     else: 
       use_f = self.f
     for curr in shuffled(self.population):
       indices = random.sample(range(0,population_size), 2)
-      r1 = self.best_individuum
+      r1 = best_individuum
       r2 = self.population[indices[0]]
       r3 = self.population[indices[1]]
       mutant = np.array(r1[3]) + use_f*(np.array(r2[3]) - np.array(r3[3]))
-
-#      print(mutant)
 
 ###  Crossover
       for j in range(0, self.n_parameters):
@@ -297,7 +289,6 @@ class DifferentialEvolution():
           mutant[j] = 2*self.lbounds[j] - mutant[j]
         if mutant[j] > self.hbounds[j]:
            mutant[j] = 2*self.hbounds[j] - mutant[j]
-#        print(mutant)
       self.trial.append([0,0,0,mutant.astype(int).tolist()])
 
 ###  History injection
@@ -322,44 +313,46 @@ class DifferentialEvolution():
     self.training = np.array([self.lbounds,]*population_size) + \
       np.array([self.hbounds,]*population_size) - np.array(self.current[:])
     self.trial = [[0,0,0,p.tolist()] for p in self.training]
-    covar = np.cov(self.current_matrix.T)
+    covar = np.around(np.cov(self.current_matrix.T), 2)
     means = np.mean(self.current_matrix, axis=0).astype(int)
     medians = np.median(self.current_matrix, axis=0).astype(int)
     self.lbounds = np.percentile(self.current_matrix, 5, axis=0).astype(int)
     self.hbounds = np.percentile(self.current_matrix, 95, axis=0).astype(int)
-#    determinant = np.linalg.det(covar)
     if self.jr is None:
       if self.n_parameters > 1:
-        self.diagonal = covar.diagonal()
-        sum_variations = sum(covar.diagonal())
-        if min(map(abs, means)) != 0:
-          coeff_var = [sqrt(p) / abs(q) for p,q in zip(self.diagonal, means)]
-        else:
-          coeff_var = [sqrt(p) for p,q in zip(self.diagonal, means)]
+        self.diagonal = [float('{0:.2f}'.format(x)) for x in covar.diagonal()]
+        sum_variations = sum(self.diagonal)
+        coeff_var = [sqrt(p) / abs(q) if q != 0 else 0 \
+          for p,q in zip(self.diagonal, means)]
       else:
-        self.diagonal = np.var(self.current_matrix.T)
+        self.diagonal = np.round(np.var(self.current_matrix.T),2)
         sum_variations = self.diagonal
         if abs(means) != 0:
           coeff_var = sqrt(sum_variations)/means
         else:
-          coeff_var = sqrt(sum_variations)
+          coeff_var = 0
     self.current_matrix = []
-    print(str(medians) + '\n' + str(self.lbounds) + '\n' + str(self.hbounds))
-    print(round(sum_variations,2))
-    diagonal = [float('%.4f' % x) for x in covar.diagonal()]
-    print(diagonal)
-    coeff = [float('%.4f' % x) for x in coeff_var]
-    print(coeff)
+
+  ## Formatting, printing and saving
+    print('{0:.2f}'.format(sum_variations))
+    for i, name in enumerate(self.nameArray):
+      print('{0:22} {1:5d} {2:5d} {3:5d} {4:7.2f} {5:7.2%}'.format(name,
+        medians[i], self.lbounds[i], self.hbounds[i], self.diagonal[i], coeff_var[i]))
     with open('tuning.txt', 'a') as f:
-      f.write(str(covar) + '\n' + str(round(sum_variations,2)) + \
-      '\n' + str(medians) + '\n' + str(self.lbounds) + '\n' + \
-      str(self.hbounds) + '\n' + str(diagonal) + '\n' + str(coeff) +'\n')
+      f.write('{0:.2f}'.format(sum_variations) + '\n')
+      for i, name in enumerate(self.nameArray):
+        f.write('{0:22} {1:5d} {2:5d} {3:5d} {4:7.2f} {5:7.2%}'.format(name,
+          medians[i], self.lbounds[i], self.hbounds[i], self.diagonal[i], coeff_var[i]) + '\n')
+    with open('new-' + ParametersFile, 'w') as f:
+      for i, name in enumerate(self.nameArray):
+        f.write('{0},{1},{2},{3}'.format(name,
+          medians[i], self.lbounds[i], self.hbounds[i]) + '\n')
 
 if __name__ == '__main__':
   de = DifferentialEvolution()
 
   g = 0
-  while g < iterations or sum(de.diagonal) < 0.1:
+  while g < iterations or sum(de.diagonal) < 1.0:
     de.evaluate()
     de.mutate()
     g+=1
@@ -406,5 +399,24 @@ def tolerance_interval(sum_variations):
 #    intervals = [tolerance_interval(x) for x in zip(*self.current_matrix)]
 #    self.lbounds = (means - ci).tolist()
 #    self.hbounds = (means + ci).tolist()
+
+#    titles = ['Parameter', 'Median', 'LBound', 'HBound', 'Variation', 'CV']
+#    data = [titles] + list(zip(self.nameArray, medians, self.lbounds,
+#      self.hbounds, self.diagonal, coeff))
+#    for i, d in enumerate(data):
+#      line = '|'.join(str(x).ljust(12) for x in d)
+#      print(line)
+#      if i == 0:
+#        print('-' * len(line))
+#    with open('tuning.txt', 'a') as f:
+#      data = list(zip(self.nameArray, medians, self.lbounds,
+#      self.hbounds))
+#      for i, d in enumerate(data):
+#        line = ','.join(str(x) for x in d)
+#        f.write(line + '\n')
+#      f.write(str(sum_variations) + '\n')
+#      f.write(str(covar) + '\n' + str(sum_variations) + \
+#      '\n' + str(medians) + '\n' + str(self.lbounds) + '\n' + \
+#      str(self.hbounds) + '\n' + str(self.diagonal) + '\n' + str(coeff) +'\n')
 
 '''
