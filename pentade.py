@@ -33,7 +33,8 @@ Openings = 'C:\\Cutechess\\2moves.epd'
 Games = 10
 UseEngine = False
 Syzygy = 'C:\\Winboard\\Syzygy'
-ParametersFile = 'C:\\Rockstar\\quadratic.txt'
+ParametersFile = 'quadratic.txt'
+LogFile = 'tuning.txt'
 
 Options = {'Clear Hash': True, 'Hash': 16, 'SyzygyPath': Syzygy, \
           'SyzygyProbeDepth': 10, 'Syzygy50MoveRule': True, 'SyzygyProbeLimit': 5}
@@ -163,7 +164,7 @@ class DifferentialEvolution():
       tri[2] = sum(tri[1])
 
 ###  Selection
-      if curr[0] < 0.0:
+      if curr[0] < tri[0]:
 #      if random.uniform(0,1) < 0.5:
         population.append(tri)
       else:
@@ -203,7 +204,6 @@ class DifferentialEvolution():
     pentares = []
     for i in range(0,5):
       pentares.append(result.count(i))
-#    print(pentares)
     return pentares
 
   def calc_los(self, pentares):
@@ -214,11 +214,9 @@ class DifferentialEvolution():
       sumi += pentares[i] * res / N
       sumi2 += pentares[i] * res * res / N
     sigma = math.sqrt(sumi2 - sumi * sumi)
-#    t = math.sqrt(0.5 * N) * (sumi - 1) / sigma
-#    los = norm.cdf(t)
-#    print(sumi, sumi2, sigma, t)
-    t = math.sqrt(2) * (sumi - 1) * 0.5 * 100 / sigma
-    return '{0:.2f}'.format(t)
+    t = math.sqrt(N) * (sumi - 1) / sigma * 100
+#    los = norm.cdf(t) * 100
+    return '{0:.2f}'.format(round(t, 2))
 
 ###  Game playing
   def launchSf(self, pars, fen, tablebases,):
@@ -311,7 +309,7 @@ class DifferentialEvolution():
 ###  Mutation
   def mutate(self):
     self.trial = []
-    best_individuum = self.population[-1]
+    best_individuum = self.history[-1]
     if self.f is None:
       use_f = random.uniform(0.5,1.5)
     else: 
@@ -361,8 +359,8 @@ class DifferentialEvolution():
     covar = np.round(np.cov(self.current_matrix.T), 2)
     means = np.mean(self.current_matrix, axis=0).astype(int)
     medians = np.median(self.current_matrix, axis=0).astype(int)
-    self.lbounds = np.percentile(self.current_matrix, 0, axis=0).astype(int)
-    self.hbounds = np.percentile(self.current_matrix, 100, axis=0).astype(int)
+    self.lbounds = np.percentile(self.current_matrix, 5, axis=0).astype(int)
+    self.hbounds = np.percentile(self.current_matrix, 95, axis=0).astype(int)
     if self.jr is None:
       if self.n_parameters > 1:
         self.diagonal = covar.diagonal()
@@ -392,7 +390,7 @@ class DifferentialEvolution():
       print('{0:22} {1:5d} {2:5d} {3:5d} {4:9.2f} {5:8.2%}'.format(name,
         medians[i], self.lbounds[i], self.hbounds[i],
           self.diagonal[i], coeff_var[i]))
-    with open('C:\\Rockstar\\tuning.txt', 'a') as f:
+    with open(LogFile, 'a') as f:
       f.write('{0:.2f}'.format(sum_variations) + '\n')
       for member in self.history[-5:][::-1]:
         f.write('{0:6.2f}, {1!s}, {2:3d}, {3!s}\n'.format(member[0],
