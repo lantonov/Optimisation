@@ -1,14 +1,11 @@
-import sys
 import subprocess
 import random
 import numpy as np
 import scipy as sp
 import math
 import re
-import scipy.stats
 import chess
-import collections
-import operator
+from operator import itemgetter
 from chess import uci
 from chess import Board
 from chess import Move
@@ -17,7 +14,6 @@ from numpy import sqrt
 from scipy.stats import chi2
 from scipy.stats import norm
 from statistics import median
-from decimal import *
 
 Engines = [
     {'file': 'C:\\msys2\\home\\lanto\\material\\tune.exe', 'name': 'test'},
@@ -35,6 +31,7 @@ UseEngine = False
 Syzygy = 'C:\\Winboard\\Syzygy'
 ParametersFile = 'quadratic.txt'
 LogFile = 'tuning.txt'
+DynamicConstraints = True
 
 Options = {'Clear Hash': True, 'Hash': 16, 'SyzygyPath': Syzygy, \
           'SyzygyProbeDepth': 10, 'Syzygy50MoveRule': True, 'SyzygyProbeLimit': 5}
@@ -148,7 +145,7 @@ class DifferentialEvolution():
       current = dict(zip(self.nameArray, curr[3]))
       trial = dict(zip(self.nameArray, tri[3]))
       result = []
-      with chess.syzygy.open_tablebases(Syzygy) as tablebases:
+      with syzygy.open_tablebases(Syzygy) as tablebases:
         for fen in fens:
           result1 = self.trans_result(self.launchSf([current, trial], fen, tablebases,))
           result2 = self.trans_result(self.launchSf([trial, current], fen, tablebases,))
@@ -169,7 +166,7 @@ class DifferentialEvolution():
         population.append(tri)
       else:
         population.append(curr)
-    self.population = sorted(population, key=operator.itemgetter(0))
+    self.population = sorted(population, key=itemgetter(0))
     self.history = self.updateHistory()
 #    print(self.population)
     for member in self.history[-5:][::-1]:
@@ -194,7 +191,7 @@ class DifferentialEvolution():
 
 #    self.history = sorted(self.history, key=lambda games: games[2])
 #    self.history = sorted(self.history, key=lambda fitness: fitness[0])[-population_size:]
-    self.history = sorted(self.history, key=operator.itemgetter(0))[-population_size:]
+    self.history = sorted(self.history, key=itemgetter(0))[-population_size:]
     return self.history
     
   def trans_result(self, score):
@@ -359,16 +356,15 @@ class DifferentialEvolution():
     covar = np.round(np.cov(self.current_matrix.T), 2)
     means = np.mean(self.current_matrix, axis=0).astype(int)
     medians = np.median(self.current_matrix, axis=0).astype(int)
-    self.lbounds = np.percentile(self.current_matrix, 5, axis=0).astype(int)
-    self.hbounds = np.percentile(self.current_matrix, 95, axis=0).astype(int)
+    if DynamicConstraints:
+      self.lbounds = np.percentile(self.current_matrix, 5, axis=0).astype(int)
+      self.hbounds = np.percentile(self.current_matrix, 95, axis=0).astype(int)
     if self.jr is None:
       if self.n_parameters > 1:
         self.diagonal = covar.diagonal()
         sum_variations = sum(self.diagonal)
-        if min(map(abs, means)) != 0:
-          coeff_var = [sqrt(p) / abs(q) for p,q in zip(self.diagonal, means)]
-        else:
-          coeff_var = [sqrt(p) for p,q in zip(self.diagonal, means)]
+        coeff_var = [sqrt(p) / abs(q) if abs(q) is not 0 else sqrt(p) for p,
+          q in zip(self.diagonal, means)]
       else:
         self.diagonal = np.round(np.var(self.current_matrix.T),2)
         sum_variations = self.diagonal
