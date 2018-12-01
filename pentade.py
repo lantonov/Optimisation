@@ -95,10 +95,10 @@ def init_engines(pars):
   for e in Engines:
     uciEngines.append(uci.popen_engine(e['file']))
 
-  for u in uciEngines:
+  for e,u in enumerate(uciEngines):
     u.uci()
     u.setoption(Options)
-    u.setoption(pars[uciEngines.index(u)])
+    u.setoption(pars[e])
     u.isready()
 
   return uciEngines
@@ -238,13 +238,21 @@ class DifferentialEvolution():
       while (not board.is_game_over(claim_draw=True)):
 
         if board.castling_rights == 0:
-          if len(re.findall(r"[rnbqkpRNBQKP]", board.board_fen())) < 6:
+
+#          if len(re.findall(r"[rnbqkpRNBQKP]", board.board_fen())) < 6:
+#            wdl = tablebases.probe_wdl(board)
+#            if wdl is not None:
+#              break                       # ~ 1.5 ms
+
+          try:
             wdl = tablebases.probe_wdl(board)
             if wdl is not None:
               break
+          except KeyError:
+            pass                           # < 1 ms
 
         uciEngines[turnIdx].position(board)
-        bestmove, score = uciEngines[turnIdx].go(depth=4)
+        bestmove, score = uciEngines[turnIdx].go(depth=7)
         score = info_handler.info["score"][1].cp
 #        print(score)
 
@@ -297,8 +305,7 @@ class DifferentialEvolution():
         u.quit(0)
     except (MemoryError, SystemError, KeyboardInterrupt,
     OverflowError, OSError, ResourceWarning):
-      for u in uciEngines:
-        u.quit(1)
+      pass
 #    print(result)
     return result
     exit(0)
@@ -363,7 +370,7 @@ class DifferentialEvolution():
       if self.n_parameters > 1:
         self.diagonal = covar.diagonal()
         sum_variations = sum(self.diagonal)
-        coeff_var = [sqrt(p) / abs(q) if abs(q) is not 0 else sqrt(p) for p,
+        coeff_var = [0.0 if abs(q) == 0.0 else sqrt(p) / abs(q) for p,
           q in zip(self.diagonal, means)]
       else:
         self.diagonal = np.round(np.var(self.current_matrix.T),2)
@@ -400,30 +407,6 @@ class DifferentialEvolution():
         f.write('{0},{1},{2},{3}'.format(name,
           medians[i], self.lbounds[i], self.hbounds[i]) + '\n')
 
-
-#    ti = tolerance_interval(sum_variations)
-#    ci = self.confidence_interval(sum_variations)
-#    self.lbounds = (means - ci).tolist()
-#    self.hbounds = (means + ci).tolist()
-#    lbounds = np.amin(np.array(self.current_matrix), axis=0).astype(int)
-#    hbounds = np.amax(np.array(self.current_matrix), axis=0).astype(int)
-#    self.lbounds = list(map(max, lbounds, self.lbounds))
-#    self.hbounds = list(map(min, hbounds, self.hbounds))
-#    intervals = [tolerance_interval(x) for x in zip(*self.current_matrix)]
-#    self.lbounds = (means - ci).tolist()
-#    self.hbounds = (means + ci).tolist()
-#    print(str(medians) + '\n' + str(self.lbounds) + '\n' + str(self.hbounds))
-#    print(sum_variations)
-#    self.diagonal = [float('{0:.2f}'.format(x)) for x in self.diagonal]
-#    print(self.diagonal)
-#    coeff = [float('{0:.2f}'.format(x)) for x in coeff_var]
-#    print(coeff)
-#    with open('tuning1.txt', 'a') as f:
-#      f.write(str(covar) + '\n' + str(sum_variations) + \
-#      '\n' + str(medians) + '\n' + str(self.lbounds) + '\n' + \
-#      str(self.hbounds) + '\n' + str(self.diagonal) + '\n' + str(coeff) +'\n')
-
-
 if __name__ == '__main__':
   de = DifferentialEvolution()
 
@@ -436,6 +419,28 @@ if __name__ == '__main__':
   exit(0)
 
 '''
+    ti = tolerance_interval(sum_variations)
+    ci = self.confidence_interval(sum_variations)
+    self.lbounds = (means - ci).tolist()
+    self.hbounds = (means + ci).tolist()
+    lbounds = np.amin(np.array(self.current_matrix), axis=0).astype(int)
+    hbounds = np.amax(np.array(self.current_matrix), axis=0).astype(int)
+    self.lbounds = list(map(max, lbounds, self.lbounds))
+    self.hbounds = list(map(min, hbounds, self.hbounds))
+    intervals = [tolerance_interval(x) for x in zip(*self.current_matrix)]
+    self.lbounds = (means - ci).tolist()
+    self.hbounds = (means + ci).tolist()
+    print(str(medians) + '\n' + str(self.lbounds) + '\n' + str(self.hbounds))
+    print(sum_variations)
+    self.diagonal = [float('{0:.2f}'.format(x)) for x in self.diagonal]
+    print(self.diagonal)
+    coeff = [float('{0:.2f}'.format(x)) for x in coeff_var]
+    print(coeff)
+    with open('tuning1.txt', 'a') as f:
+      f.write(str(covar) + '\n' + str(sum_variations) + \
+      '\n' + str(medians) + '\n' + str(self.lbounds) + '\n' + \
+      str(self.hbounds) + '\n' + str(self.diagonal) + '\n' + str(coeff) +'\n')
+
 def tolerance_interval(sum_variations):
   n = population_size * dynamic_rate
   dof = n - 1
