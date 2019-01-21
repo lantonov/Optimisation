@@ -1,3 +1,4 @@
+import timeit
 import subprocess
 import random
 import numpy as np
@@ -16,8 +17,8 @@ from scipy.stats import norm
 from statistics import median
 
 Engines = [
-    {'file': 'C:\\msys2\\home\\lanto\\material\\tune.exe', 'name': 'test'},
-    {'file': 'C:\\msys2\\home\\lanto\\material\\tune.exe', 'name': 'base'}
+    {'file': 'C:\\msys2\\home\\lanto\\material-tune\\stockfish.exe', 'name': 'test'},
+    {'file': 'C:\\msys2\\home\\lanto\\material-tune\\stockfish.exe', 'name': 'base'}
     ]
 
 Draw = {'movenumber': 40, 'movecount': 8, 'score': 20}
@@ -31,7 +32,7 @@ UseEngine = False
 Syzygy = 'C:\\Winboard\\Syzygy'
 ParametersFile = 'quadratic.txt'
 LogFile = 'tuning.txt'
-DynamicConstraints = True
+DynamicConstraints = False
 
 Options = {'Clear Hash': True, 'Hash': 16, 'SyzygyPath': Syzygy, \
           'SyzygyProbeDepth': 10, 'Syzygy50MoveRule': True, 'SyzygyProbeLimit': 5}
@@ -86,11 +87,6 @@ def shuffled(x):
 
 def init_engines(pars):
   info_handlers = []
-#    for u in self.engines:
-#      if (not u.is_alive()):
-#        self.engines = init_engines()
-
-#    uciEngines = self.engines
   uciEngines = []
   for e in Engines:
     uciEngines.append(uci.popen_engine(e['file']))
@@ -151,18 +147,19 @@ class DifferentialEvolution():
           result2 = self.trans_result(self.launchSf([trial, current], fen, tablebases,))
           result.append(result1 + result2)
       pentares = self.pentanomial(result)
-      curr[1] = (np.array(curr[1]) + np.array(pentares)).tolist()
-      tri[1] = (np.array(tri[1]) + np.array(pentares[::-1])).tolist()
+#      curr[1] = (np.array(curr[1]) + np.array(pentares)).tolist()  # non-Markovian process
+#      tri[1] = (np.array(tri[1]) + np.array(pentares[::-1])).tolist()
+      curr[1] = pentares  # Markov process
+      tri[1] = pentares[::-1]
       curr[0] = float(self.calc_los(curr[1]))
       tri[0] = float(self.calc_los(tri[1]))
       num += 1
       print('{0:3d}  {1:7.2f} | {2:7.2f}'.format(num, curr[0], tri[0]))
-      curr[2] = sum(curr[1])
-      tri[2] = sum(tri[1])
+      curr[2] += 2 * Games
+      tri[2] += 2 * Games
 
 ###  Selection
       if curr[0] < tri[0]:
-#      if random.uniform(0,1) < 0.5:
         population.append(tri)
       else:
         population.append(curr)
@@ -177,20 +174,21 @@ class DifferentialEvolution():
 
 ###  History update
   def updateHistory(self):
+#    start = timeit.default_timer()
     for popu in self.population:
       if str(popu[3]) not in str(self.history):
         self.history.append(popu)
       else:
-        for hist in self.history:
-          if str(popu[3]) in str(hist[3]):
-            if popu[2] > hist[2]:
-              hist = popu
+#        for hist in self.history:
+#          if str(popu[3]) in str(hist[3]):
+#            if popu[2] > hist[2]:
+#              hist = popu                      # 22.45 +/- 3.1 ms
 
-#    self.history = [popu if (str(x[3]) in str(popu[3]) \
-#      and x[2] < popu[2]) else x for x in self.history]
+        self.history = [popu if (str(x[3]) in str(popu[3]) \
+          and x[2] < popu[2]) else x for x in self.history]    # 10.17 +/- 0.7 ms
+#    stop = timeit.default_timer()
+#    print(stop - start)            
 
-#    self.history = sorted(self.history, key=lambda games: games[2])
-#    self.history = sorted(self.history, key=lambda fitness: fitness[0])[-population_size:]
     self.history = sorted(self.history, key=itemgetter(0))[-population_size:]
     return self.history
     
@@ -211,7 +209,10 @@ class DifferentialEvolution():
       sumi += pentares[i] * res / N
       sumi2 += pentares[i] * res * res / N
     sigma = math.sqrt(sumi2 - sumi * sumi)
-    t = math.sqrt(N) * (sumi - 1) / sigma * 100
+    try:
+      t = (sumi - 1) / sigma * 100
+    except ZeroDivisionError:
+      t = (sumi - 1) * 1000
 #    los = norm.cdf(t) * 100
     return '{0:.2f}'.format(round(t, 2))
 
@@ -234,79 +235,74 @@ class DifferentialEvolution():
       u.info_handlers.append(info_handler)
       u.ucinewgame()
 
-    try:
-      while (not board.is_game_over(claim_draw=True)):
+    while (not board.is_game_over(claim_draw=True)):
 
-        if board.castling_rights == 0:
+      if board.castling_rights == 0:
 
 #          if len(re.findall(r"[rnbqkpRNBQKP]", board.board_fen())) < 6:
 #            wdl = tablebases.probe_wdl(board)
 #            if wdl is not None:
 #              break                       # ~ 1.5 ms
 
-          try:
-            wdl = tablebases.probe_wdl(board)
-            if wdl is not None:
-              break
-          except KeyError:
-            pass                           # < 1 ms
+        try:
+          wdl = tablebases.probe_wdl(board)
+          if wdl is not None:
+            break
+        except KeyError:
+          pass                           # < 1 ms
 
-        uciEngines[turnIdx].position(board)
-        bestmove, score = uciEngines[turnIdx].go(depth=7)
-        score = info_handler.info["score"][1].cp
+      uciEngines[turnIdx].position(board)
+      bestmove, score = uciEngines[turnIdx].go(depth=7)
+      score = info_handler.info["score"][1].cp
 #        print(score)
 
-        if score is not None:
-            # Resign adjudication
-            if abs(score) >= Resign['score']:
-                resignPlyCnt += 1
-                if resignPlyCnt >= 2 * Resign['movecount']:
-                    break
-            else:
-                resignPlyCnt = 0
+      if score is not None:
+          # Resign adjudication
+          if abs(score) >= Resign['score']:
+              resignPlyCnt += 1
+              if resignPlyCnt >= 2 * Resign['movecount']:
+                  break
+          else:
+              resignPlyCnt = 0
 
-            # Draw adjudication
-            if abs(score) <= Draw['score'] and board.halfmove_clock > 0:
-                drawPlyCnt += 1
-                if drawPlyCnt >= 2 * Draw['movecount'] \
-                        and board.fullmove_number >= Draw['movenumber']:
-                    break
-            else:
-                drawPlyCnt = 0
+          # Draw adjudication
+          if abs(score) <= Draw['score'] and board.halfmove_clock > 0:
+              drawPlyCnt += 1
+              if drawPlyCnt >= 2 * Draw['movecount'] \
+                      and board.fullmove_number >= Draw['movenumber']:
+                  break
+          else:
+              drawPlyCnt = 0
+      else:
+          # Disable adjudication over mate scores
+          drawPlyCnt, resignPlyCnt = 0, 0
+
+      board.push(bestmove)
+      turnIdx ^= 1
+
+    result = board.result(True)
+    if result == '*':
+      if resignPlyCnt >= 2 * Resign['movecount']:
+        if score > 0:
+          result = '1-0' if board.turn == chess.WHITE else '0-1'
         else:
-            # Disable adjudication over mate scores
-            drawPlyCnt, resignPlyCnt = 0, 0
-
-        board.push(bestmove)
-        turnIdx ^= 1
-
-      result = board.result(True)
-      if result == '*':
-        if resignPlyCnt >= 2 * Resign['movecount']:
-          if score > 0:
-            result = '1-0' if board.turn == chess.WHITE else '0-1'
-          else:
-            result = '0-1' if board.turn == chess.WHITE else '1-0'
-        elif wdl is not None:
-          if wdl <= -1:
-            result = '1-0' if board.turn == chess.WHITE else '0-1'
-          elif wdl >= 1:
-            result = '0-1' if board.turn == chess.WHITE else '1-0'
-          else:
-            result = '1/2-1/2'
-#            print('tb draw')
+          result = '0-1' if board.turn == chess.WHITE else '1-0'
+      elif wdl is not None:
+        if wdl <= -1:
+          result = '1-0' if board.turn == chess.WHITE else '0-1'
+        elif wdl >= 1:
+          result = '0-1' if board.turn == chess.WHITE else '1-0'
         else:
           result = '1/2-1/2'
+#            print('tb draw')
+      else:
+        result = '1/2-1/2'
 #          print('draw')
 
-  #    print(board.fen())
-  #    print(re.findall(r"[rnbqkpRNBQKP]", board.board_fen()))
-      for u in uciEngines:
-        u.quit(0)
-    except (MemoryError, SystemError, KeyboardInterrupt,
-    OverflowError, OSError, ResourceWarning):
-      pass
-#    print(result)
+#    print(board.fen())
+#    print(re.findall(r"[rnbqkpRNBQKP]", board.board_fen()))
+    for u in uciEngines:
+      u.quit(0)
     return result
     exit(0)
 
@@ -372,18 +368,19 @@ class DifferentialEvolution():
         sum_variations = sum(self.diagonal)
         coeff_var = [0.0 if abs(q) == 0.0 else sqrt(p) / abs(q) for p,
           q in zip(self.diagonal, means)]
+        self.print_save(medians, sum_variations, coeff_var)
       else:
-        self.diagonal = np.round(np.var(self.current_matrix.T),2)
+        self.diagonal = np.round(np.var(self.current_matrix.T),2).tolist()
         sum_variations = self.diagonal
         if abs(means) != 0:
-          coeff_var = sqrt(sum_variations)/means
+          coeff_var = list(sqrt(sum_variations)/means)
         else:
-          coeff_var = sqrt(sum_variations)
+          coeff_var = list(sqrt(sum_variations))
 #    np.set_printoptions(threshold=np.inf)
 #    np.savetxt('stats.txt', self.current_matrix.T, delimiter=',')
 #    with open('stats.txt', 'a') as f:
 #      f.write(str(self.current_matrix.T))
-    self.print_save(medians, sum_variations, coeff_var)
+#    self.print_save(medians, sum_variations, coeff_var)
     self.current_matrix = []
 
   ## Formatting, printing and saving
