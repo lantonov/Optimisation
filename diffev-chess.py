@@ -115,11 +115,11 @@ class DifferentialEvolution():
 
     def calc_los(self, pentares):
         sumi, sumi2 = 0, 0
-        for e,i in zip(pentares,[0,0.5,1,1.5,2]):
+        for i,score in enumerate([0,0.5,1,1.5,2]):
 #            res = 0.5 * i
             N = sum(pentares)
-            sumi += e * i / N
-            sumi2 += e * i * i / N
+            sumi += pentares[i] * score / N
+            sumi2 += pentares[i] * score * score / N
         sigma = math.sqrt(sumi2 - sumi * sumi)
         try:
           t0 = (sumi - 1) / sigma
@@ -210,5 +210,5 @@ class DifferentialEvolution():
 
 if __name__ == '__main__':
     de = DifferentialEvolution()
-    result = differential_evolution(de.evaluate,bounds=de.bounds,polish=False,workers=4)
+    result = differential_evolution(de.evaluate,bounds=de.bounds)
     result.x, result.fun
