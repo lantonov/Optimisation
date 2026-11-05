@@ -1,32 +1,18 @@
-# ==========================================
-# Pure Base R Implementation (No External Packages Required)
-# ==========================================
+# Ensure the tolerance package is installed
+# install.packages("tolerance")
+library(tolerance)
 
 #' Calculate the beta-content, gamma-confidence Tolerance Interval for the Reference Product
-#' Uses the Howe (1969) approximation for the exact tolerance factor k_c.
 #' @param x_ref Numeric vector of reference product lot values
 #' @param beta Content proportion (e.g., 0.99)
 #' @param gamma Confidence level (e.g., 0.95)
 #' @return A named numeric vector with Lower and Upper bounds
 calc_ref_TI <- function(x_ref, beta, gamma) {
-  n_R <- length(x_ref)
-  mean_R <- mean(x_ref)
-  sd_R <- sd(x_ref)
-  
-  # 1. Standard normal quantile for the content (beta)
-  z_val <- qnorm((1 + beta) / 2)
-  
-  # 2. Chi-square quantile for the confidence (gamma)
-  # We use the lower tail (1 - gamma) to ensure a conservative bound on the variance
-  chi2_val <- qchisq(1 - gamma, df = n_R - 1)
-  
-  # 3. Howe's approximation for the two-sided tolerance factor k_c
-  k_c <- z_val * sqrt((n_R - 1) / chi2_val) * sqrt(1 + 1 / n_R)
-  
-  lower <- mean_R - k_c * sd_R
-  upper <- mean_R + k_c * sd_R
-  
-  return(c(Lower = lower, Upper = upper))
+  # The tolerance package uses 'alpha' as the significance level (1 - gamma)
+  # and 'P' as the content proportion (beta)
+  ti_res <- normtol.int(x = x_ref, alpha = 1 - gamma, P = beta, side = 2,
+            method="EXACT") #or method="HE"
+  return(c(Lower = ti_res$lower, Upper = ti_res$upper))
 }
 
 #' Calculate the beta Prediction Interval for the Test Product
@@ -63,11 +49,9 @@ x_test <- rnorm(10, mean = 100.2, sd = 1.1)
 beta <- 0.99
 gamma <- 0.95
 
-# Calculate Intervals
 ref_TI <- calc_ref_TI(x_ref, beta, gamma)
 test_PI <- calc_test_PI(x_test, beta)
 
-# Print Results
 cat(sprintf("Reference %d%%-content %d%%-confidence TI: [%.3f, %.3f]\n", 
             beta*100, gamma*100, ref_TI["Lower"], ref_TI["Upper"]))
 cat(sprintf("Test %d%% Prediction Interval: [%.3f, %.3f]\n", 
